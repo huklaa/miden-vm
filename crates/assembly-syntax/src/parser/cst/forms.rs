@@ -501,6 +501,12 @@ fn apply_procedure_attributes(
                 protocol_abi_span = Some(span);
             }
 
+            if attr.name() == "callconv"
+                && !matches!(&attr, ast::Attribute::List(list) if list.len() == 1)
+            {
+                return Err(ParsingError::UnrecognizedCallConv { span: attr.span() });
+            }
+
             match attr {
                 ast::Attribute::KeyValue(kv) => match attributes.entry(kv.id()) {
                     ast::AttributeSetEntry::Vacant(entry) => {

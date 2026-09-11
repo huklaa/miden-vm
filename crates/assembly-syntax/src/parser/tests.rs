@@ -552,6 +552,25 @@ end
 }
 
 #[test]
+fn parse_rejects_unsupported_callconv_attribute_forms() {
+    for attribute in [
+        "@callconv",
+        "@callconv(\"C\", \"fast\")",
+        "@callconv(kind = \"C\")",
+    ] {
+        let source = test_source_file(&alloc::format!(
+            "namespace test::callconv\n\n@account_procedure\n{attribute}\npub proc foo() -> i1\n    push.1\nend\n"
+        ));
+
+        let err = parse_forms(source).expect_err("parser should reject unsupported @callconv");
+        assert_matches!(
+            render_diagnostic(err),
+            diag if diag.contains("unrecognized calling convention")
+        );
+    }
+}
+
+#[test]
 fn parse_nested_structured_blocks() {
     let source = test_source_file(
         "\
