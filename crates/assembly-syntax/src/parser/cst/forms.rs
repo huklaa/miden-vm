@@ -501,6 +501,15 @@ fn apply_procedure_attributes(
                 protocol_abi_span = Some(span);
             }
 
+            // Every attribute named `callconv` is reserved for the calling-convention syntax.
+            // Reject unsupported shapes here instead of letting marker, key/value, or multi-value
+            // forms fall through as generic attributes and become invalid after AST rendering.
+            if attr.name() == "callconv"
+                && !matches!(&attr, ast::Attribute::List(list) if list.len() == 1)
+            {
+                return Err(ParsingError::UnrecognizedCallConv { span: attr.span() });
+            }
+
             match attr {
                 ast::Attribute::KeyValue(kv) => match attributes.entry(kv.id()) {
                     ast::AttributeSetEntry::Vacant(entry) => {
@@ -680,5 +689,33 @@ fn item_span(context: &LoweringContext<'_>, item: &CstItem) -> SourceSpan {
         CstItem::AdviceMap(node) => context.parse().span_for_node(node.syntax()),
         CstItem::BeginBlock(node) => context.parse().span_for_node(node.syntax()),
         CstItem::Procedure(node) => context.parse().span_for_node(node.syntax()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{diagnostics::reporting::PrintDiagnostic, source_file, testing::SyntaxTestContext};
+
+    #[test]
+    fn rejects_unsupported_callconv_forms() {
+        for callconv in [
+            r#"@callconv("C", "fast")"#,
+            "@callconv",
+            "@callconv(value = fast)",
+        ] {
+            let context = SyntaxTestContext::new();
+            let source = source_file!(
+                &context,
+                format!(
+                    "namespace test::callconv\n\n@account_procedure\n{callconv}\npub proc foo() -> i1\n    push.1\nend\n"
+                )
+            );
+            let error = context.parse_forms(source).expect_err(callconv);
+            let rendered = format!("{}", PrintDiagnostic::new_without_color(error));
+            assert!(
+                rendered.contains("unrecognized calling convention"),
+                "{callconv}: {rendered}"
+            );
+        }
     }
 }
