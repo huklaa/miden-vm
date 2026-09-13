@@ -2,6 +2,10 @@
 
 ## v0.33.0 (Unreleased)
 
+#### Features
+
+- Added `Prover::prove_vm_witness()` so callers can directly prove the VM half of a split execution witness when no deferred precompile work is present ([#3829](https://github.com/0xMiden/miden-vm/issues/3829)).
+
 #### Fixes
 
 - Fixed `PartialMmr::from_parts()` and deserialization so they reject tracked leaves without complete authentication paths ([#3809](https://github.com/0xMiden/miden-vm/pull/3809)).

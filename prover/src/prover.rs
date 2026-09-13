@@ -93,6 +93,16 @@ impl Prover {
         Ok(ExecutionProof::new(vm, precompile))
     }
 
+    /// Proves a VM witness whose execution contains no deferred precompile work.
+    ///
+    /// The returned execution proof is complete and carries an empty precompile status. Callers
+    /// that split an [`ExecutionWitness`] containing precompile work must prove and package that
+    /// work separately instead of using this entry point.
+    pub fn prove_vm_witness(&self, witness: VmWitness) -> Result<ExecutionProof, ProverError> {
+        let vm = self.prove_vm(witness)?;
+        Ok(ExecutionProof::new(vm, PrecompileStatus::Empty))
+    }
+
     /// Materializes and proves the VM trace represented by `witness`.
     fn prove_vm(&self, witness: VmWitness) -> Result<VmProof, ProverError> {
         let trace = {

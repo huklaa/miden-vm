@@ -356,6 +356,23 @@ mod prover_api_lifecycle {
     }
 
     #[test]
+    fn split_vm_witness_can_be_proved_directly() {
+        let program = assemble("begin push.1 drop end");
+        let stack_inputs = StackInputs::default();
+        let witness = execute(&program);
+        let stack_outputs = *witness.claim().stack_outputs();
+        let (vm_witness, precompile_witness) = witness.into_parts();
+        assert!(precompile_witness.is_none());
+
+        let proof = Prover::new()
+            .prove_vm_witness(vm_witness)
+            .expect("split VM witness should prove directly");
+
+        assert!(matches!(proof.precompile(), PrecompileStatus::Empty));
+        assert_complete(&program, stack_inputs, stack_outputs, &proof);
+    }
+
+    #[test]
     fn configured_prove_sync_matches_buffered_and_overlapped_routes() {
         let program = assemble("begin push.1 drop end");
         let stack_inputs = StackInputs::default();
