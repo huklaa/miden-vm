@@ -502,6 +502,12 @@ fn apply_procedure_attributes(
             }
 
             match attr {
+                ast::Attribute::Marker(id) if id.as_str() == "callconv" => {
+                    return Err(ParsingError::UnrecognizedCallConv { span: id.span() });
+                },
+                ast::Attribute::KeyValue(kv) if kv.name() == "callconv" => {
+                    return Err(ParsingError::UnrecognizedCallConv { span: kv.span() });
+                },
                 ast::Attribute::KeyValue(kv) => match attributes.entry(kv.id()) {
                     ast::AttributeSetEntry::Vacant(entry) => {
                         entry.insert(ast::Attribute::KeyValue(kv));
@@ -535,8 +541,11 @@ fn apply_procedure_attributes(
                         }
                     },
                 },
-                ast::Attribute::List(list) if list.name() == "callconv" && list.len() == 1 => {
+                ast::Attribute::List(list) if list.name() == "callconv" => {
                     let span = list.span;
+                    if list.len() != 1 {
+                        return Err(ParsingError::UnrecognizedCallConv { span });
+                    }
                     match attributes.entry(list.id()) {
                         ast::AttributeSetEntry::Vacant(entry) => {
                             let valid_cc = match &list.as_slice()[0] {

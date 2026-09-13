@@ -1926,6 +1926,17 @@ fn test_protocol_abi_matching_callconv_in_either_order() -> Result<(), Report> {
 }
 
 #[test]
+fn test_invalid_callconv_attribute_forms_are_rejected() {
+    for callconv in ["@callconv", r#"@callconv("C", "fast")"#, r#"@callconv(value = "C")"#] {
+        let context = SyntaxTestContext::new();
+        let source =
+            source_file!(&context, format!("{callconv}\npub proc foo() -> i1\n    push.1\nend\n"));
+        let error = context.parse_forms(source).expect_err(callconv);
+        assert_diagnostic!(error, "unrecognized calling convention");
+    }
+}
+
+#[test]
 fn test_protocol_abi_conflicting_callconv_in_either_order() {
     for name in ["account_procedure", "auth_script", "note_script", "transaction_script"] {
         for metadata in ["", "(value)", "(role = \"custom\")"] {
