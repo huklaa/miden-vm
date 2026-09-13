@@ -312,6 +312,24 @@ fn cli_bundle_output() {
     assert!(output_file.exists());
 }
 
+#[test]
+fn cli_bundle_default_output_uses_root_stem() {
+    let working_dir = TempDir::new().unwrap();
+
+    for stem in ["foo", "bar"] {
+        let root = working_dir.path().join(format!("{stem}.masm"));
+        fs::copy(fixture("tests/integration/cli/data/lib/mod.masm"), &root).unwrap();
+
+        let mut cmd = bin_under_test(working_dir.path());
+        cmd.arg("bundle").arg(&root).arg("--namespace").arg(stem);
+        cmd.assert().success();
+
+        assert!(working_dir.path().join(format!("{stem}.masp")).is_file());
+    }
+
+    assert!(!working_dir.path().join("out.masp").exists());
+}
+
 // First compile a library to a .masp file, then run a program that uses it.
 #[test]
 fn cli_run_with_lib() {

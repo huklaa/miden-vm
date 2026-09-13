@@ -53,15 +53,11 @@ impl BundleCmd {
             return Err(Report::msg("`root` must be a '.masm' file."));
         }
 
-        // write the masp output
-        let output_file = match &self.output {
-            Some(output) => output,
-            None => {
-                let parent =
-                    &self.root.parent().ok_or("Invalid output path").map_err(Report::msg)?;
-                &parent.join("out").with_extension(Package::EXTENSION)
-            },
-        };
+        // Write the `.masp` output beside the root module by default.
+        let output_file = self
+            .output
+            .clone()
+            .unwrap_or_else(|| self.root.with_extension(Package::EXTENSION));
 
         if self.kernel {
             assembler.link_package(CoreLibrary::default().package(), Linkage::Dynamic)?;
@@ -74,7 +70,7 @@ impl BundleCmd {
             if self.release {
                 library.strip_debug_info().into_diagnostic()?;
             }
-            library.write_to_file(output_file).into_diagnostic()?;
+            library.write_to_file(&output_file).into_diagnostic()?;
             println!("Built kernel library {} from {}", library.name, self.root.display());
         } else {
             let library_namespace = match self.namespace.as_ref() {
@@ -88,7 +84,7 @@ impl BundleCmd {
             if self.release {
                 library.strip_debug_info().into_diagnostic()?;
             }
-            library.write_to_file(output_file).into_diagnostic()?;
+            library.write_to_file(&output_file).into_diagnostic()?;
             println!("Built package '{}'", library.name);
         }
 

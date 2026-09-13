@@ -4,6 +4,8 @@
 
 #### Fixes
 
+- Fixed `miden-vm bundle` to derive its default `.masp` output path from the root module name instead
+  of silently overwriting a fixed `out.masp` file ([#3801](https://github.com/0xMiden/miden-vm/issues/3801)).
 - Fixed `PartialMmr::from_parts()` and deserialization so they reject tracked leaves without complete authentication paths ([#3809](https://github.com/0xMiden/miden-vm/pull/3809)).
 - Fixed `PartialMmr::track()` panicking when a leaf position did not belong to the tree selected by its authentication path ([#3804](https://github.com/0xMiden/miden-vm/pull/3804)).
 - Fixed 46 `\begin{cases}...\end{cases}` blocks in the assembly instruction reference and stack design docs that were missing the `\\` row separator between cases, which broke KaTeX rendering ([#3650](https://github.com/0xMiden/miden-vm/issues/3650)).
