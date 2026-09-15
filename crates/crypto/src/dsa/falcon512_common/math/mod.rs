@@ -115,8 +115,12 @@ pub(crate) fn ntru_gen<R: Rng>(n: usize, rng: &mut R) -> [Polynomial<i16>; 4] {
         {
             // we do bound checks on the coefficients of the solution polynomials in order to make
             // sure that they will be encodable/decodable
-            let capital_f = capital_f.map(|i| i.try_into().unwrap());
-            let capital_g = capital_g.map(|i| i.try_into().unwrap());
+            let Some(capital_f) = try_bigint_polynomial_to_i16(&capital_f) else {
+                continue;
+            };
+            let Some(capital_g) = try_bigint_polynomial_to_i16(&capital_g) else {
+                continue;
+            };
             if !(check_coefficients_bound(&capital_f, MAX_BIG_POLY_COEFFICIENT_SIZE)
                 && check_coefficients_bound(&capital_g, MAX_BIG_POLY_COEFFICIENT_SIZE))
             {
@@ -125,6 +129,20 @@ pub(crate) fn ntru_gen<R: Rng>(n: usize, rng: &mut R) -> [Polynomial<i16>; 4] {
             return [g, -f, capital_g, -capital_f];
         }
     }
+}
+
+/// Converts a polynomial over arbitrary-size integers to `i16` coefficients.
+///
+/// Returns `None` when any coefficient does not fit, allowing key generation to reject the
+/// candidate and sample again instead of panicking before the encoding-bound check.
+fn try_bigint_polynomial_to_i16(polynomial: &Polynomial<BigInt>) -> Option<Polynomial<i16>> {
+    let coefficients = polynomial
+        .coefficients
+        .iter()
+        .map(i16::try_from)
+        .collect::<Result<Vec<_>, _>>()
+        .ok()?;
+    Some(Polynomial::new(coefficients))
 }
 
 /// Solves the NTRU equation. Given f, g in `ZZ[X]`, find F, G in `ZZ[X]` such that:
@@ -343,8 +361,24 @@ mod tests {
     use rand_chacha::ChaCha20Rng;
 
     use super::{
-        FalconFelt, Inverse, MODULUS, Polynomial, check_coefficients_bound, ntru_gen, xgcd,
+        FalconFelt, Inverse, MODULUS, Polynomial, check_coefficients_bound, ntru_gen,
+        try_bigint_polynomial_to_i16, xgcd,
     };
+
+    #[test]
+    fn bigint_polynomial_to_i16_rejects_out_of_range_coefficients() {
+        let in_range = Polynomial::new(vec![BigInt::from(i16::MIN), BigInt::from(i16::MAX)]);
+        assert_eq!(
+            try_bigint_polynomial_to_i16(&in_range).unwrap().coefficients,
+            vec![i16::MIN, i16::MAX],
+        );
+
+        let too_large = Polynomial::new(vec![BigInt::from(i16::MAX) + 1]);
+        assert!(try_bigint_polynomial_to_i16(&too_large).is_none());
+
+        let too_small = Polynomial::new(vec![BigInt::from(i16::MIN) - 1]);
+        assert!(try_bigint_polynomial_to_i16(&too_small).is_none());
+    }
 
     /// `ntru_gen` returns the secret-key basis rows `[g, -f, G, -F]`; the NTRU equation
     /// `f*G - g*F = q (mod X^n + 1)` is then exactly `a*d - b*c = q` on the returned

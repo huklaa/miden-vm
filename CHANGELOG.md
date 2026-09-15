@@ -8,6 +8,8 @@
 
 #### Fixes
 
+- Fixed Falcon key generation panicking when an NTRU solution coefficient does not fit in `i16`;
+  oversized candidates are now rejected and resampled.
 - Fixed `PartialMmr::from_parts()` and deserialization so they reject tracked leaves without complete authentication paths ([#3809](https://github.com/0xMiden/miden-vm/pull/3809)).
 - Fixed exponential traversal of shared deferred-state DAGs during precompile prover session construction by caching translated nodes and counting shared claim uses ([#3798](https://github.com/0xMiden/miden-vm/pull/3798)).
 - Fixed `PartialMmr::track()` panicking when a leaf position did not belong to the tree selected by its authentication path ([#3804](https://github.com/0xMiden/miden-vm/pull/3804)).
