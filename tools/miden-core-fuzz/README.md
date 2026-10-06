@@ -31,12 +31,6 @@ The **`mast_forest_deserialize`** target tests `MastForest::read_from_bytes` wit
 cargo +nightly fuzz run mast_forest_deserialize --fuzz-dir tools/miden-core-fuzz
 ```
 
-The **`mast_forest_serde_deserialize`** target tests `MastForest` JSON deserialization via `serde_json`.
-
-```bash
-cargo +nightly fuzz run mast_forest_serde_deserialize --fuzz-dir tools/miden-core-fuzz
-```
-
 The **`mast_forest_validate`** target tests the full untrusted pipeline from decoding through validation.
 
 ```bash
@@ -53,22 +47,10 @@ The **`program_deserialize`** target tests `Program::read_from_bytes`.
 cargo +nightly fuzz run program_deserialize --fuzz-dir tools/miden-core-fuzz
 ```
 
-The **`program_serde_deserialize`** target tests `Program` JSON deserialization via `serde_json`.
-
-```bash
-cargo +nightly fuzz run program_serde_deserialize --fuzz-dir tools/miden-core-fuzz
-```
-
 The **`kernel_deserialize`** target tests `KernelDescriptor::read_from_bytes`.
 
 ```bash
 cargo +nightly fuzz run kernel_deserialize --fuzz-dir tools/miden-core-fuzz
-```
-
-The **`kernel_serde_deserialize`** target tests `KernelDescriptor` JSON deserialization via `serde_json`.
-
-```bash
-cargo +nightly fuzz run kernel_serde_deserialize --fuzz-dir tools/miden-core-fuzz
 ```
 
 The **`stack_io_deserialize`** target tests `StackInputs` and `StackOutputs` deserialization.
@@ -83,22 +65,10 @@ The **`advice_inputs_deserialize`** target tests `AdviceInputs` and `AdviceMap` 
 cargo +nightly fuzz run advice_inputs_deserialize --fuzz-dir tools/miden-core-fuzz
 ```
 
-The **`advice_map_serde_deserialize`** target tests `AdviceMap` JSON deserialization via `serde_json`.
-
-```bash
-cargo +nightly fuzz run advice_map_serde_deserialize --fuzz-dir tools/miden-core-fuzz
-```
-
 The **`operation_deserialize`** target tests `Operation::read_from_bytes`.
 
 ```bash
 cargo +nightly fuzz run operation_deserialize --fuzz-dir tools/miden-core-fuzz
-```
-
-The **`operation_serde_deserialize`** target tests `Operation` JSON deserialization via `serde_json`.
-
-```bash
-cargo +nightly fuzz run operation_serde_deserialize --fuzz-dir tools/miden-core-fuzz
 ```
 
 The **`execution_proof_deserialize`** target tests canonical `ExecutionProof` decoding without a
@@ -109,24 +79,10 @@ same bytes and decode to the same proof.
 make fuzz-execution-proof
 ```
 
-The **`execution_proof_serde_deserialize`** target exercises the derived Serde parsers for
-`ExecutionProof` and its `Vec` and `Option` containers. It does not establish proof validity or
-claim allocation-bounded generic Serde.
-
-```bash
-cargo +nightly fuzz run execution_proof_serde_deserialize --fuzz-dir tools/miden-core-fuzz
-```
-
 The **`deferred_state_wire_deserialize`** target tests `DeferredStateWire::read_from_bytes`.
 
 ```bash
 cargo +nightly fuzz run deferred_state_wire_deserialize --fuzz-dir tools/miden-core-fuzz
-```
-
-The **`deferred_state_wire_serde_deserialize`** target tests `DeferredStateWire` JSON deserialization via `serde_json`.
-
-```bash
-cargo +nightly fuzz run deferred_state_wire_serde_deserialize --fuzz-dir tools/miden-core-fuzz
 ```
 
 ### Package deserialization targets
