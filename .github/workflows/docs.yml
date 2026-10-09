@@ -22,6 +22,7 @@ concurrency:
 
 jobs:
   docs:
+    if: github.repository == '0xMiden/miden-vm'
     name: Generate and deploy crate documentation
     runs-on: ubuntu-latest
     permissions:
