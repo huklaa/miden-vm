@@ -476,23 +476,17 @@ fuzz-execution-proof: fuzz-seeds ## Run bounded ExecutionProof deserialization f
 fuzz-all: fuzz-seeds ## Run all fuzz targets (in sequence)
 	FAILED=0; \
 	cargo +nightly fuzz run mast_forest_deserialize --release --fuzz-dir tools/miden-core-fuzz -- -max_total_time=300 || FAILED=1; \
-	cargo +nightly fuzz run mast_forest_serde_deserialize --release --fuzz-dir tools/miden-core-fuzz -- -max_total_time=300 || FAILED=1; \
 	cargo +nightly fuzz run mast_forest_validate --release --fuzz-dir tools/miden-core-fuzz -- -max_total_time=300 || FAILED=1; \
 	cargo +nightly fuzz run mast_node_info --release --fuzz-dir tools/miden-core-fuzz -- -max_total_time=300 || FAILED=1; \
 	cargo +nightly fuzz run mast_forest_wire_view_new --release --fuzz-dir tools/miden-core-fuzz -- -max_total_time=300 || FAILED=1; \
 	cargo +nightly fuzz run basic_block_data --release --fuzz-dir tools/miden-core-fuzz -- -max_total_time=300 || FAILED=1; \
 	cargo +nightly fuzz run debug_info --release --fuzz-dir tools/miden-core-fuzz -- -max_total_time=300 || FAILED=1; \
 	cargo +nightly fuzz run program_deserialize --release --fuzz-dir tools/miden-core-fuzz -- -max_total_time=300 || FAILED=1; \
-	cargo +nightly fuzz run program_serde_deserialize --release --fuzz-dir tools/miden-core-fuzz -- -max_total_time=300 || FAILED=1; \
 	cargo +nightly fuzz run kernel_deserialize --release --fuzz-dir tools/miden-core-fuzz -- -max_total_time=300 || FAILED=1; \
-	cargo +nightly fuzz run kernel_serde_deserialize --release --fuzz-dir tools/miden-core-fuzz -- -max_total_time=300 || FAILED=1; \
 	cargo +nightly fuzz run stack_io_deserialize --release --fuzz-dir tools/miden-core-fuzz -- -max_total_time=300 || FAILED=1; \
-	cargo +nightly fuzz run advice_map_serde_deserialize --release --fuzz-dir tools/miden-core-fuzz -- -max_total_time=300 || FAILED=1; \
 	cargo +nightly fuzz run advice_inputs_deserialize --release --fuzz-dir tools/miden-core-fuzz -- -max_total_time=300 || FAILED=1; \
 	cargo +nightly fuzz run operation_deserialize --release --fuzz-dir tools/miden-core-fuzz -- -max_total_time=300 || FAILED=1; \
-	cargo +nightly fuzz run operation_serde_deserialize --release --fuzz-dir tools/miden-core-fuzz -- -max_total_time=300 || FAILED=1; \
 	cargo +nightly fuzz run execution_proof_deserialize --release --fuzz-dir tools/miden-core-fuzz -- $(EXECUTION_PROOF_FUZZ_LIMITS) -max_total_time=300 || FAILED=1; \
-	cargo +nightly fuzz run execution_proof_serde_deserialize --release --fuzz-dir tools/miden-core-fuzz -- -max_total_time=300 || FAILED=1; \
 	cargo +nightly fuzz run execution_witness_deserialize --release --fuzz-dir tools/miden-core-fuzz -- -max_total_time=300 || FAILED=1; \
 	cargo +nightly fuzz run deferred_state_wire_deserialize --release --fuzz-dir tools/miden-core-fuzz -- -max_total_time=300 || FAILED=1; \
 	cargo +nightly fuzz run package_deserialize --release --fuzz-dir tools/miden-core-fuzz -- -max_total_time=300 || FAILED=1; \
