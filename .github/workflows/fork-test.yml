@@ -1,0 +1,215 @@
+# Fork-only validation of the five jobs waiting for unavailable WarpBuild runners.
+# The source checkout is pinned to PR #2's reviewed head. This workflow is kept
+# on a separate branch and does not change the PR or upstream test requirements.
+# Eidos backend tests were excluded by the original test.yml path classifier for
+# that exact three-file PR; check-constraints already uses a GitHub runner.
+name: Fork tests for PR 2 (ba8bc6f)
+
+on:
+  push:
+    branches: [ci-validate-fuzz-docs-ba8bc6f]
+    paths: [.github/workflows/fork-test.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-test-pr2-ba8bc6f
+  cancel-in-progress: true
+
+env:
+  VALIDATION_SHA: ba8bc6f3a620e027341b16364c63b169914839ac
+  REFERENCE_WORKFLOW_BLOB: 51767c29cab1bb659948e7e2cf95beb5e90ea719
+  CARGO_BUILD_JOBS: 2
+  NEXTEST_TEST_THREADS: 2
+
+jobs:
+  test:
+    name: workspace tests (GitHub runner)
+    if: github.repository == 'huklaa/miden-vm'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ba8bc6f3a620e027341b16364c63b169914839ac
+          persist-credentials: false
+      - name: Verify and record the exact validation target
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$VALIDATION_SHA"
+          test "$(git rev-parse HEAD:.github/workflows/test.yml)" = "$REFERENCE_WORKFLOW_BLOB"
+          printf 'Validated checkout: `%s`\n\nSource workflow blob: `%s`\n' \
+            "$VALIDATION_SHA" "$REFERENCE_WORKFLOW_BLOB" >> "$GITHUB_STEP_SUMMARY"
+      - name: Check benchmark runner preflight
+        run: |
+          bash -n scripts/bench_eidos_vs_poseidon2.sh
+          python3 -m unittest discover -s scripts/tests -v
+      - name: Cleanup large tools for build space
+        uses: ./.github/actions/cleanup-runner
+      # Do not pin taiki-e's moving tool shortcut tags by hash. Pin a released
+      # install-action commit and set tool explicitly, or zizmor's
+      # impostor-commit audit can flag stale shortcut-tag hashes.
+      - name: Install nextest
+        uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+        with:
+          tool: cargo-nextest
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          save-if: false
+      - name: Install rust
+        run: rustup update --no-self-update
+      - name: Check generated precompile MASM
+        run: make check-precompile-masm
+      - name: Build tests
+        run: make test-build NEXTEST_PROFILE=ci
+      - name: test
+        run: make test NEXTEST_PROFILE=ci
+      - name: Build core library and generate documentation
+        run: |
+          # Build core library with documentation generation enabled
+          MIDEN_BUILD_LIB_DOCS=1 cargo build -p miden-core-lib
+      - name: Check for documentation changes in crates/lib/core/docs
+        run: |
+          if [ -n "$(git status --porcelain crates/lib/core/docs)" ]; then
+            echo "ERROR: Found uncommitted changes in crates/lib/core/docs/"
+            echo "This indicates that the assembly source code has changed but the documentation was not updated."
+            echo "Please commit the generated documentation changes before merging."
+            echo ""
+            echo "To fix this:"
+            echo "1. Run: MIDEN_BUILD_LIB_DOCS=1 cargo build -p miden-core-lib"
+            echo "2. Commit the changes in crates/lib/core/docs/"
+            echo ""
+            echo "Uncommitted changes:"
+            git status crates/lib/core/docs
+            echo ""
+            echo "Diff:"
+            git diff crates/lib/core/docs
+            exit 1
+          else
+            echo "No documentation changes in crates/lib/core/docs/ - OK"
+          fi
+
+  crypto-test:
+    name: crypto tests (GitHub runner)
+    if: github.repository == 'huklaa/miden-vm'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ba8bc6f3a620e027341b16364c63b169914839ac
+          persist-credentials: false
+      - name: Verify and record the exact validation target
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$VALIDATION_SHA"
+          test "$(git rev-parse HEAD:.github/workflows/test.yml)" = "$REFERENCE_WORKFLOW_BLOB"
+          printf 'Validated checkout: `%s`\n\nSource workflow blob: `%s`\n' \
+            "$VALIDATION_SHA" "$REFERENCE_WORKFLOW_BLOB" >> "$GITHUB_STEP_SUMMARY"
+      - name: Cleanup large tools for build space
+        uses: ./.github/actions/cleanup-runner
+      - name: Install nextest
+        uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+        with:
+          tool: cargo-nextest
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          save-if: false
+      - name: Install rust
+        run: rustup update --no-self-update
+      - name: Run crypto tests
+        run: make test-crypto
+
+  doc-tests:
+    name: doc-tests
+    if: github.repository == 'huklaa/miden-vm'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ba8bc6f3a620e027341b16364c63b169914839ac
+          persist-credentials: false
+      - name: Verify and record the exact validation target
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$VALIDATION_SHA"
+          test "$(git rev-parse HEAD:.github/workflows/test.yml)" = "$REFERENCE_WORKFLOW_BLOB"
+          printf 'Validated checkout: `%s`\n\nSource workflow blob: `%s`\n' \
+            "$VALIDATION_SHA" "$REFERENCE_WORKFLOW_BLOB" >> "$GITHUB_STEP_SUMMARY"
+      - name: Cleanup large tools for build space
+        uses: ./.github/actions/cleanup-runner
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          save-if: false
+      - name: Install rust
+        run: rustup update --no-self-update
+      - name: Run doc-tests
+        run: make test-docs
+
+  run-examples:
+    name: run masm examples
+    if: github.repository == 'huklaa/miden-vm'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ba8bc6f3a620e027341b16364c63b169914839ac
+          persist-credentials: false
+      - name: Verify and record the exact validation target
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$VALIDATION_SHA"
+          test "$(git rev-parse HEAD:.github/workflows/test.yml)" = "$REFERENCE_WORKFLOW_BLOB"
+          printf 'Validated checkout: `%s`\n\nSource workflow blob: `%s`\n' \
+            "$VALIDATION_SHA" "$REFERENCE_WORKFLOW_BLOB" >> "$GITHUB_STEP_SUMMARY"
+      - name: Cleanup large tools for build space
+        uses: ./.github/actions/cleanup-runner
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          save-if: false
+      - name: Install rust
+        run: rustup update --no-self-update
+      - name: Run masm examples
+        run: make run-examples
+
+  check-features:
+    name: check all feature combinations
+    if: github.repository == 'huklaa/miden-vm'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ba8bc6f3a620e027341b16364c63b169914839ac
+          persist-credentials: false
+      - name: Verify and record the exact validation target
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$VALIDATION_SHA"
+          test "$(git rev-parse HEAD:.github/workflows/test.yml)" = "$REFERENCE_WORKFLOW_BLOB"
+          printf 'Validated checkout: `%s`\n\nSource workflow blob: `%s`\n' \
+            "$VALIDATION_SHA" "$REFERENCE_WORKFLOW_BLOB" >> "$GITHUB_STEP_SUMMARY"
+      - name: Cleanup large tools for build space
+        uses: ./.github/actions/cleanup-runner
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          save-if: false
+      - name: Install rust
+        run: rustup update --no-self-update
+      # Keep this on a released install-action commit with an explicit tool; see
+      # the nextest install above for the zizmor/tool-shortcut rationale.
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+        with:
+          tool: cargo-hack
+      - name: Check all feature combinations
+        run: make check-features
