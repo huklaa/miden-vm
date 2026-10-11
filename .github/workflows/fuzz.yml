@@ -17,6 +17,11 @@ on:
 permissions:
   contents: read
 
+# Keep fuzzing on the compiler used by the last successful upstream run.
+# Newer nightlies ICE while compiling p3-goldilocks 0.8.0; update after revalidation.
+env:
+  FUZZ_TOOLCHAIN: nightly-2026-10-09
+
 jobs:
   fuzz-miden-core:
     name: fuzz miden-core (${{ matrix.target }})
@@ -51,7 +56,7 @@ jobs:
       - name: Cleanup large tools for build space
         uses: ./.github/actions/cleanup-runner
       - name: Install Rust toolchain
-        run: rustup update --no-self-update nightly
+        run: rustup update --no-self-update "$FUZZ_TOOLCHAIN"
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Install cargo-fuzz
         run: cargo install cargo-fuzz --locked
@@ -74,7 +79,7 @@ jobs:
         env:
           TARGET: ${{ matrix.target }}
         run: |
-          FUZZ_TARGET="$(cargo +nightly fuzz build --help | awk '
+          FUZZ_TARGET="$(cargo +"$FUZZ_TOOLCHAIN" fuzz build --help | awk '
             $0 ~ /^      --target <TRIPLE>/ { in_target = 1; next }
             in_target && /\[default:/ {
               sub(/^.*\[default: /, "")
@@ -85,7 +90,7 @@ jobs:
           ')"
           test -n "$FUZZ_TARGET"
           # Build the fuzz target first
-          cargo +nightly fuzz build --target "$FUZZ_TARGET" --fuzz-dir tools/miden-core-fuzz "$TARGET"
+          cargo +"$FUZZ_TOOLCHAIN" fuzz build --target "$FUZZ_TARGET" --fuzz-dir tools/miden-core-fuzz "$TARGET"
           # Run directly to avoid cargo-fuzz wrapper SIGPIPE issue
           FUZZ_BIN="tools/miden-core-fuzz/target/$FUZZ_TARGET/release/$TARGET"
           test -x "$FUZZ_BIN"
@@ -121,7 +126,7 @@ jobs:
       - name: Cleanup large tools for build space
         uses: ./.github/actions/cleanup-runner
       - name: Install Rust toolchain
-        run: rustup update --no-self-update nightly
+        run: rustup update --no-self-update "$FUZZ_TOOLCHAIN"
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Install cargo-fuzz
         run: cargo install cargo-fuzz --locked
@@ -129,7 +134,7 @@ jobs:
         env:
           TARGET: ${{ matrix.target }}
         run: |
-          FUZZ_TARGET="$(cargo +nightly fuzz build --help | awk '
+          FUZZ_TARGET="$(cargo +"$FUZZ_TOOLCHAIN" fuzz build --help | awk '
             $0 ~ /^      --target <TRIPLE>/ { in_target = 1; next }
             in_target && /\[default:/ {
               sub(/^.*\[default: /, "")
@@ -139,7 +144,7 @@ jobs:
             }
           ')"
           test -n "$FUZZ_TARGET"
-          cargo +nightly fuzz build --target "$FUZZ_TARGET" --fuzz-dir tools/miden-crypto-fuzz "$TARGET"
+          cargo +"$FUZZ_TOOLCHAIN" fuzz build --target "$FUZZ_TARGET" --fuzz-dir tools/miden-crypto-fuzz "$TARGET"
           FUZZ_BIN="tools/miden-crypto-fuzz/target/$FUZZ_TARGET/release/$TARGET"
           test -x "$FUZZ_BIN"
           "$FUZZ_BIN" -max_total_time=60 -runs=10000
@@ -165,7 +170,7 @@ jobs:
       - name: Cleanup large tools for build space
         uses: ./.github/actions/cleanup-runner
       - name: Install Rust toolchain
-        run: rustup update --no-self-update nightly
+        run: rustup update --no-self-update "$FUZZ_TOOLCHAIN"
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Install cargo-fuzz
         run: cargo install cargo-fuzz --locked
@@ -173,7 +178,7 @@ jobs:
         env:
           TARGET: ${{ matrix.target }}
         run: |
-          FUZZ_TARGET="$(cargo +nightly fuzz build --help | awk '
+          FUZZ_TARGET="$(cargo +"$FUZZ_TOOLCHAIN" fuzz build --help | awk '
             $0 ~ /^      --target <TRIPLE>/ { in_target = 1; next }
             in_target && /\[default:/ {
               sub(/^.*\[default: /, "")
@@ -183,7 +188,7 @@ jobs:
             }
           ')"
           test -n "$FUZZ_TARGET"
-          cargo +nightly fuzz build --target "$FUZZ_TARGET" --fuzz-dir tools/miden-serde-utils-fuzz "$TARGET"
+          cargo +"$FUZZ_TOOLCHAIN" fuzz build --target "$FUZZ_TARGET" --fuzz-dir tools/miden-serde-utils-fuzz "$TARGET"
           FUZZ_BIN="tools/miden-serde-utils-fuzz/target/$FUZZ_TARGET/release/$TARGET"
           test -x "$FUZZ_BIN"
           "$FUZZ_BIN" -max_total_time=60 -runs=10000
