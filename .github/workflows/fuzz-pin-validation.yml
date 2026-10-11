@@ -1,0 +1,191 @@
+# Separate, fork-only evidence run for the proposed toolchain pin.
+# Production fuzz.yml retains all 34 targets. This validation selects one target
+# from each fuzz workspace and checks out the exact proposed PR head.
+name: Fuzz nightly pin validation
+
+on:
+  push:
+    branches: [ci-validate-fuzz-nightly-20261009]
+    paths: [.github/workflows/fuzz-pin-validation.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fuzz-nightly-pin-validation
+  cancel-in-progress: true
+
+env:
+  FUZZ_TOOLCHAIN: nightly-2026-10-09
+  VALIDATION_SHA: a347ceb0983f83f62a2eb96086e4d502ac0d813f
+  REFERENCE_WORKFLOW_BLOB: 39a5f3c3dcaa78cf7959fd17a09b0b58377db16f
+
+jobs:
+  fuzz-miden-core:
+    name: fuzz miden-core (${{ matrix.target }})
+    if: github.repository == 'huklaa/miden-vm'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - mast_forest_validate
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: a347ceb0983f83f62a2eb96086e4d502ac0d813f
+          persist-credentials: false
+      - name: Verify exact candidate source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$VALIDATION_SHA"
+          test "$(git rev-parse HEAD:.github/workflows/fuzz.yml)" = "$REFERENCE_WORKFLOW_BLOB"
+          printf 'Source: `%s`\n\nFuzz workflow blob: `%s`\n' \
+            "$VALIDATION_SHA" "$REFERENCE_WORKFLOW_BLOB" >> "$GITHUB_STEP_SUMMARY"
+      - name: Cleanup large tools for build space
+        uses: ./.github/actions/cleanup-runner
+      - name: Install Rust toolchain
+        run: rustup update --no-self-update "$FUZZ_TOOLCHAIN"
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --locked
+      - name: Generate fuzz seed corpus
+        env:
+          TARGET: ${{ matrix.target }}
+          GENERATED_CORPUS_TARGETS: >-
+            mast_forest_deserialize program_deserialize kernel_deserialize
+            stack_io_deserialize advice_inputs_deserialize operation_deserialize
+            execution_proof_deserialize execution_witness_deserialize
+            deferred_state_wire_deserialize
+            package_deserialize package_semantic_deserialize
+        run: |
+          if [[ " $GENERATED_CORPUS_TARGETS " == *" $TARGET "* ]]; then
+            make fuzz-seeds
+          else
+            echo "No generated seed corpus for $TARGET"
+          fi
+      - name: Run fuzz target (smoke test)
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          FUZZ_TARGET="$(cargo +"$FUZZ_TOOLCHAIN" fuzz build --help | awk '
+            $0 ~ /^      --target <TRIPLE>/ { in_target = 1; next }
+            in_target && /\[default:/ {
+              sub(/^.*\[default: /, "")
+              sub(/\].*$/, "")
+              print
+              exit
+            }
+          ')"
+          test -n "$FUZZ_TARGET"
+          # Build the fuzz target first
+          cargo +"$FUZZ_TOOLCHAIN" fuzz build --target "$FUZZ_TARGET" --fuzz-dir tools/miden-core-fuzz "$TARGET"
+          # Run directly to avoid cargo-fuzz wrapper SIGPIPE issue
+          FUZZ_BIN="tools/miden-core-fuzz/target/$FUZZ_TARGET/release/$TARGET"
+          test -x "$FUZZ_BIN"
+          CORPUS_DIR="tools/miden-core-fuzz/corpus/$TARGET"
+          if [ -d "$CORPUS_DIR" ]; then
+            "$FUZZ_BIN" "$CORPUS_DIR" -max_total_time=60 -runs=10000
+          else
+            "$FUZZ_BIN" -max_total_time=60 -runs=10000
+          fi
+
+  fuzz-miden-crypto:
+    name: fuzz miden-crypto (${{ matrix.target }})
+    if: github.repository == 'huklaa/miden-vm'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - smt
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: a347ceb0983f83f62a2eb96086e4d502ac0d813f
+          persist-credentials: false
+      - name: Verify exact candidate source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$VALIDATION_SHA"
+          test "$(git rev-parse HEAD:.github/workflows/fuzz.yml)" = "$REFERENCE_WORKFLOW_BLOB"
+          printf 'Source: `%s`\n\nFuzz workflow blob: `%s`\n' \
+            "$VALIDATION_SHA" "$REFERENCE_WORKFLOW_BLOB" >> "$GITHUB_STEP_SUMMARY"
+      - name: Cleanup large tools for build space
+        uses: ./.github/actions/cleanup-runner
+      - name: Install Rust toolchain
+        run: rustup update --no-self-update "$FUZZ_TOOLCHAIN"
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --locked
+      - name: Run fuzz target (smoke test)
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          FUZZ_TARGET="$(cargo +"$FUZZ_TOOLCHAIN" fuzz build --help | awk '
+            $0 ~ /^      --target <TRIPLE>/ { in_target = 1; next }
+            in_target && /\[default:/ {
+              sub(/^.*\[default: /, "")
+              sub(/\].*$/, "")
+              print
+              exit
+            }
+          ')"
+          test -n "$FUZZ_TARGET"
+          cargo +"$FUZZ_TOOLCHAIN" fuzz build --target "$FUZZ_TARGET" --fuzz-dir tools/miden-crypto-fuzz "$TARGET"
+          FUZZ_BIN="tools/miden-crypto-fuzz/target/$FUZZ_TARGET/release/$TARGET"
+          test -x "$FUZZ_BIN"
+          "$FUZZ_BIN" -max_total_time=60 -runs=10000
+
+  fuzz-miden-serde-utils:
+    name: fuzz miden-serde-utils (${{ matrix.target }})
+    if: github.repository == 'huklaa/miden-vm'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - budgeted
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: a347ceb0983f83f62a2eb96086e4d502ac0d813f
+          persist-credentials: false
+      - name: Verify exact candidate source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$VALIDATION_SHA"
+          test "$(git rev-parse HEAD:.github/workflows/fuzz.yml)" = "$REFERENCE_WORKFLOW_BLOB"
+          printf 'Source: `%s`\n\nFuzz workflow blob: `%s`\n' \
+            "$VALIDATION_SHA" "$REFERENCE_WORKFLOW_BLOB" >> "$GITHUB_STEP_SUMMARY"
+      - name: Cleanup large tools for build space
+        uses: ./.github/actions/cleanup-runner
+      - name: Install Rust toolchain
+        run: rustup update --no-self-update "$FUZZ_TOOLCHAIN"
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --locked
+      - name: Run fuzz target (smoke test)
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          FUZZ_TARGET="$(cargo +"$FUZZ_TOOLCHAIN" fuzz build --help | awk '
+            $0 ~ /^      --target <TRIPLE>/ { in_target = 1; next }
+            in_target && /\[default:/ {
+              sub(/^.*\[default: /, "")
+              sub(/\].*$/, "")
+              print
+              exit
+            }
+          ')"
+          test -n "$FUZZ_TARGET"
+          cargo +"$FUZZ_TOOLCHAIN" fuzz build --target "$FUZZ_TARGET" --fuzz-dir tools/miden-serde-utils-fuzz "$TARGET"
+          FUZZ_BIN="tools/miden-serde-utils-fuzz/target/$FUZZ_TARGET/release/$TARGET"
+          test -x "$FUZZ_BIN"
+          "$FUZZ_BIN" -max_total_time=60 -runs=10000
