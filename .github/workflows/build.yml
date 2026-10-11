@@ -20,6 +20,9 @@ jobs:
   no-std:
     name: Build for no-std
     runs-on: ubuntu-latest
+    # Match the known-good fuzz compiler until the p3-goldilocks ICE is fixed.
+    env:
+      RUSTUP_TOOLCHAIN: ${{ matrix.toolchain == 'nightly' && 'nightly-2026-10-09' || matrix.toolchain }}
     strategy:
       fail-fast: false
       matrix:
@@ -33,9 +36,9 @@ jobs:
         uses: ./.github/actions/cleanup-runner
       - name: Build for no-std
         run: |
-          rustup update --no-self-update ${{ matrix.toolchain }}
-          rustup +${{ matrix.toolchain }} target add ${{ matrix.target }}
-          RUSTUP_TOOLCHAIN=${{ matrix.toolchain }} NO_STD_TARGET=${{ matrix.target }} make build-no-std
+          rustup update --no-self-update "$RUSTUP_TOOLCHAIN"
+          rustup +"$RUSTUP_TOOLCHAIN" target add ${{ matrix.target }}
+          NO_STD_TARGET=${{ matrix.target }} make build-no-std
 
   target-miden:
     name: Build for Miden target
